@@ -1,0 +1,23 @@
+[package]
+name = "cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "runcell"
+path = "src/main.rs"
+
+[dependencies]
+celler = { path = "../celler" }
+
+anyhow.workspace = true
+tokio.workspace = true
+
+# Log
+slog.workspace = true
+slog-scope.workspace = true
+slog-term.workspace = true
+
+[features]
+seccomp = ["celler/seccomp"]
+standard-oci-runtime = ["celler/standard-oci-runtime"]

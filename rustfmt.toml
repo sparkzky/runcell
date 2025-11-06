@@ -1,0 +1,38 @@
+# Rustfmt configuration for runcell project
+
+# Use 2024 edition features
+edition = "2024"
+
+# Formatting options
+max_width = 100
+hard_tabs = false
+tab_spaces = 4
+
+# Import formatting
+imports_granularity = "Crate"
+group_imports = "StdExternalCrate"
+
+# Function formatting
+fn_single_line = false
+where_single_line = false
+
+# Control flow
+control_brace_style = "AlwaysSameLine"
+
+# Comments and documentation
+wrap_comments = true
+format_code_in_doc_comments = true
+normalize_comments = true
+normalize_doc_attributes = true
+
+# Misc
+use_field_init_shorthand = true
+use_try_shorthand = true
+format_strings = true
+format_macro_matchers = true
+reorder_impl_items = true
+
+# Unstable features (require nightly, commented out by default)
+# Uncomment these if you use nightly toolchain
+# unstable_features = true
+# format_macro_bodies = true
