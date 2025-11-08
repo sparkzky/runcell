@@ -7,6 +7,7 @@ use oci_spec::runtime::{LinuxDeviceCgroup, LinuxDeviceType, LinuxResources};
 use protocols::agent::CgroupStats;
 
 pub mod fs;
+pub mod mock;
 
 #[derive(Default, Debug)]
 pub struct DevicesCgroupInfo {
