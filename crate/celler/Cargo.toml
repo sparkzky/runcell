@@ -5,6 +5,10 @@ edition.workspace = true
 
 [dependencies]
 awaitgroup = "0.6.0"
+path-absolutize = "1.2.0"
+xattr = "0.2.3"
+rlimit = "0.5.3"
+
 
 libc.workspace = true
 lazy_static.workspace = true
@@ -12,6 +16,8 @@ nix.workspace = true
 anyhow.workspace = true
 protobuf.workspace = true
 scopeguard.workspace = true
+capctl.workspace = true
+scan_fmt.workspace = true
 
 # Async runtime
 tokio.workspace = true
@@ -45,6 +51,11 @@ libseccomp = { version = "0.3.0", optional = true }
 
 test-utils = { path = "../libs/test-utils" }
 protocols = { path = "../libs/protocols" }
+runtime-spec = { path = "../libs/runtime-spec" }
+kata-sys-utils = { path = "../libs/kata-sys-utils" }
+kata-types = { path = "../libs/kata-types" }
+safe-path = { path = "../libs/safe-path" }
+
 
 [dev-dependencies]
 serial_test.workspace = true
@@ -52,4 +63,3 @@ serial_test.workspace = true
 [features]
 seccomp = ["libseccomp"]
 standard-oci-runtime = []
-
