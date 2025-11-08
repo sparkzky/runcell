@@ -153,10 +153,11 @@ impl AsyncWrite for PipeStream {
     }
 
     fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        // Do nothing in shutdown is very important
-        // The only right way to shutdown pipe is drop it
-        // Otherwise PipeStream will conflict with its twins
-        // Because they both have same fd, and both registered.
+        // 对于管道来说，关闭写端的唯一正确方法是 drop 这个 PipeStream，这会触发
+        // StreamFd 的 Drop 实现，进而调用 unistd::close 关闭文件描述符。如果在 shutdown
+        // 时就关闭了 fd，而 PipeStream
+        // 对象本身还存在，就会导致状态不一致，并可能影响到共享同一个 fd
+        // 的其他实例（如下面的测试用例所示）
         Poll::Ready(Ok(()))
     }
 }
@@ -176,8 +177,13 @@ mod tests {
 
         // if close fd in shutdown, the fd will be reused
         // and the test will failed
+        // 调用 writer1.shutdown().await。测试的关键点在于：
+        // 如果 shutdown 错误地关闭了 wfd1，那么这个文件描述符会被操作系统回收。
+        // 那么再创建一个新的管道，得到的读端 rfd2 的文件描述符可能会与刚刚被关闭的
+        // wfd1 相同（因为操作系统会重用文件描述符编号）。
         let _ = writer1.shutdown().await.unwrap();
 
+        // 可以在这里显式删除这个 fd，然后这个测例就会阻塞
         // let _ = unistd::close(wfd1);
 
         let (rfd2, wfd2) = unistd::pipe2(OFlag::O_CLOEXEC).unwrap(); // reuse fd number, rfd2 == wfd1
