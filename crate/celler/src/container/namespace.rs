@@ -95,7 +95,7 @@ fn is_userns_enabled(linux: &Linux) -> bool {
         .any(|ns| &ns.typ().to_string() == "user" && ns.path().is_none())
 }
 
-pub(super)fn get_namespaces(linux: &Linux) -> Vec<LinuxNamespace> {
+pub(super) fn get_namespaces(linux: &Linux) -> Vec<LinuxNamespace> {
     linux
         .namespaces()
         .clone()

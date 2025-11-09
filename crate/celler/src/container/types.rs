@@ -1,8 +1,7 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc, time::SystemTime};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::Result;
 use async_trait::async_trait;
-use cgroups::freezer::FreezerState;
 use libc::pid_t;
 use nix::sched::CloneFlags;
 use oci_spec::runtime::{self as oci, LinuxDevice, LinuxResources};
@@ -10,11 +9,10 @@ use protocols::agent::StatsContainerResponse;
 use regex::Regex;
 use runtime_spec::{ContainerState, State as OCIState};
 use serde::{Deserialize, Serialize};
-use slog::Logger;
 use tokio::sync::Mutex;
 
 use super::Config;
-use crate::{cgroups::CgroupManager, process::Process};
+use crate::process::Process;
 
 type NamespaceType = String;
 
@@ -37,8 +35,8 @@ pub const InvalidNamespace: &str = "invalid namespace type";
 
 #[derive(Debug)]
 pub struct ContainerStatus {
-    pre_status: ContainerState,
-    cur_status: ContainerState,
+    pub(super) pre_status: ContainerState,
+    pub(super) cur_status: ContainerState,
 }
 
 impl ContainerStatus {
@@ -104,7 +102,7 @@ pub trait BaseContainer {
     fn oci_state(&self) -> Result<OCIState>;
     fn config(&self) -> Result<&Config>;
     fn processes(&self) -> Result<Vec<i32>>;
-    fn process_mut(&mut self, eid: &str) -> Result<&mut Process>;
+    fn get_process_mut(&mut self, eid: &str) -> Result<&mut Process>;
     fn stats(&self) -> Result<StatsContainerResponse>;
     fn set_resources(&mut self, config: LinuxResources) -> Result<()>;
     async fn start(&mut self, p: Process) -> Result<()>;

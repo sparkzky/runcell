@@ -34,15 +34,13 @@ use nix::{
     },
     unistd::{self, ForkResult, Gid, Pid, Uid, fork},
 };
-use oci_spec::runtime::{self as oci, LinuxDevice, LinuxResources};
+use oci_spec::runtime::{self as oci, LinuxResources};
 use protobuf::MessageField;
 use protocols::agent::StatsContainerResponse;
-use regex::Regex;
 use rlimit::{Resource, Rlim, setrlimit};
 use runtime_spec::{ContainerState, State as OCIState};
-use serde::{Deserialize, Serialize};
 use slog::Logger;
-use tokio::{fs::File, sync::Mutex};
+use tokio::fs::File;
 pub use types::DEFAULT_DEVICES;
 use types::*;
 
@@ -145,7 +143,7 @@ impl BaseContainer for LinuxContainer {
         Ok(self.processes.values().map(|p| p.pid).collect())
     }
 
-    fn process_mut(&mut self, eid: &str) -> Result<&mut Process> {
+    fn get_process_mut(&mut self, eid: &str) -> Result<&mut Process> {
         self.processes
             .get_mut(eid)
             .ok_or_else(|| anyhow!("invalid eid {}", eid))
@@ -965,4 +963,390 @@ fn set_stdio_permissions(uid: Uid) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        fs,
+        os::unix::{fs::MetadataExt, io::AsRawFd},
+        time::UNIX_EPOCH,
+    };
+
+    use nix::unistd::Uid;
+    use oci::{LinuxBuilder, LinuxDeviceCgroupBuilder, LinuxResourcesBuilder, Root, SpecBuilder};
+    use oci_spec::runtime::{self as oci, Spec};
+    use tempfile::tempdir;
+    use test_utils::skip_if_not_root;
+
+    use super::*;
+    use crate::process::Process;
+
+    const CGROUP_PARENT: &str = "kata.agent.test.k8s.io";
+
+    fn sl() -> slog::Logger {
+        slog_scope::logger()
+    }
+
+    #[test]
+    fn test_status_transtition() {
+        let mut status = ContainerStatus::new();
+        let status_table: [ContainerState; 4] = [
+            ContainerState::Created,
+            ContainerState::Running,
+            ContainerState::Paused,
+            ContainerState::Stopped,
+        ];
+
+        for s in status_table.iter() {
+            let pre_status = status.status();
+            status.transition(*s);
+
+            assert_eq!(pre_status, status.pre_status);
+        }
+    }
+
+    #[test]
+    fn test_set_stdio_permissions() {
+        skip_if_not_root!();
+
+        let meta = fs::metadata("/dev/stdin").unwrap();
+        let old_uid = meta.uid();
+
+        let uid = 1000;
+        set_stdio_permissions(Uid::from_raw(uid)).unwrap();
+
+        let meta = fs::metadata("/dev/stdin").unwrap();
+        assert_eq!(meta.uid(), uid);
+
+        let meta = fs::metadata("/dev/stdout").unwrap();
+        assert_eq!(meta.uid(), uid);
+
+        let meta = fs::metadata("/dev/stderr").unwrap();
+        assert_eq!(meta.uid(), uid);
+
+        // restore the uid
+        set_stdio_permissions(Uid::from_raw(old_uid)).unwrap();
+    }
+
+    #[test]
+    fn test_namespaces() {
+        lazy_static::initialize(&NAMESPACES);
+        assert_eq!(NAMESPACES.len(), 7);
+
+        let ns = NAMESPACES.get("user");
+        assert!(ns.is_some());
+
+        let ns = NAMESPACES.get("ipc");
+        assert!(ns.is_some());
+
+        let ns = NAMESPACES.get("pid");
+        assert!(ns.is_some());
+
+        let ns = NAMESPACES.get("net");
+        assert!(ns.is_some());
+
+        let ns = NAMESPACES.get("mnt");
+        assert!(ns.is_some());
+
+        let ns = NAMESPACES.get("uts");
+        assert!(ns.is_some());
+
+        let ns = NAMESPACES.get("cgroup");
+        assert!(ns.is_some());
+    }
+
+    #[test]
+    fn test_typetoname() {
+        lazy_static::initialize(&TYPETONAME);
+        assert_eq!(TYPETONAME.len(), 7);
+
+        let ns = TYPETONAME.get(&oci::LinuxNamespaceType::User);
+        assert!(ns.is_some());
+
+        let ns = TYPETONAME.get(&oci::LinuxNamespaceType::Ipc);
+        assert!(ns.is_some());
+
+        let ns = TYPETONAME.get(&oci::LinuxNamespaceType::Pid);
+        assert!(ns.is_some());
+
+        let ns = TYPETONAME.get(&oci::LinuxNamespaceType::Network);
+        assert!(ns.is_some());
+
+        let ns = TYPETONAME.get(&oci::LinuxNamespaceType::Mount);
+        assert!(ns.is_some());
+
+        let ns = TYPETONAME.get(&oci::LinuxNamespaceType::Uts);
+        assert!(ns.is_some());
+
+        let ns = TYPETONAME.get(&oci::LinuxNamespaceType::Cgroup);
+        assert!(ns.is_some());
+    }
+
+    fn create_dummy_opts() -> CreateOpts {
+        let start = SystemTime::now();
+        let since_the_epoch = start
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards");
+
+        let mut root = Root::default();
+        root.set_path(String::from("/tmp").into());
+
+        let linux_resources = LinuxResourcesBuilder::default()
+            .devices(vec![
+                LinuxDeviceCgroupBuilder::default()
+                    .allow(true)
+                    .typ(oci::LinuxDeviceType::C)
+                    .access("rwm")
+                    .build()
+                    .unwrap(),
+            ])
+            .build()
+            .unwrap();
+
+        let cgroups_path = format!(
+            "/{}/dummycontainer{}",
+            CGROUP_PARENT,
+            since_the_epoch.as_micros()
+        );
+
+        let mut spec = SpecBuilder::default()
+            .linux(
+                LinuxBuilder::default()
+                    .cgroups_path(cgroups_path)
+                    .resources(linux_resources)
+                    .build()
+                    .unwrap(),
+            )
+            .root(root)
+            .build()
+            .unwrap();
+        spec.set_process(None);
+
+        CreateOpts {
+            cgroup_name: "".to_string(),
+            use_systemd_cgroup: false,
+            no_pivot_root: false,
+            no_new_keyring: false,
+            spec: Some(spec),
+            rootless_euid: false,
+            rootless_cgroup: false,
+            container_name: "".to_string(),
+        }
+    }
+
+    fn new_linux_container() -> (Result<LinuxContainer>, tempfile::TempDir) {
+        // Create a temporal directory
+        let dir = tempdir()
+            .map_err(|e| anyhow!(e).context("tempdir failed"))
+            .unwrap();
+
+        // Create a new container
+        (
+            LinuxContainer::new(
+                "some_id",
+                &dir.path().join("rootfs").to_str().unwrap(),
+                None,
+                create_dummy_opts(),
+                &slog_scope::logger(),
+            ),
+            dir,
+        )
+    }
+
+    fn new_linux_container_and_then<U, F: FnOnce(LinuxContainer) -> Result<U, anyhow::Error>>(
+        op: F,
+    ) -> Result<U, anyhow::Error> {
+        let (container, _dir) = new_linux_container();
+        container.and_then(op)
+    }
+
+    #[test]
+    fn test_linuxcontainer_pause_bad_status() {
+        let ret = new_linux_container_and_then(|mut c: LinuxContainer| {
+            // Change state to pause, c.pause() should fail
+            c.status.transition(ContainerState::Paused);
+            c.pause().map_err(|e| anyhow!(e))
+        });
+
+        assert!(ret.is_err(), "Expecting error, Got {:?}", ret);
+        assert!(format!("{:?}", ret).contains("failed to pause container"))
+    }
+
+    #[test]
+    fn test_linuxcontainer_pause() {
+        let ret = new_linux_container_and_then(|mut c: LinuxContainer| {
+            c.cgroup_manager =
+                Box::new(FsManager::new("", &Spec::default(), None).map_err(|e| {
+                    anyhow!(format!("fail to create cgroup manager with path: {:}", e))
+                })?);
+            c.pause().map_err(|e| anyhow!(e))
+        });
+
+        assert!(ret.is_ok(), "Expecting Ok, Got {:?}", ret);
+    }
+
+    #[test]
+    fn test_linuxcontainer_resume_bad_status() {
+        let ret = new_linux_container_and_then(|mut c: LinuxContainer| {
+            // Change state to created, c.resume() should fail
+            c.status.transition(ContainerState::Created);
+            c.resume().map_err(|e| anyhow!(e))
+        });
+
+        assert!(ret.is_err(), "Expecting error, Got {:?}", ret);
+        assert!(format!("{:?}", ret).contains("not paused"))
+    }
+
+    #[test]
+    fn test_linuxcontainer_resume() {
+        let ret = new_linux_container_and_then(|mut c: LinuxContainer| {
+            c.cgroup_manager =
+                Box::new(FsManager::new("", &Spec::default(), None).map_err(|e| {
+                    anyhow!(format!("fail to create cgroup manager with path: {:}", e))
+                })?);
+            // Change status to paused, this way we can resume it
+            c.status.transition(ContainerState::Paused);
+            c.resume().map_err(|e| anyhow!(e))
+        });
+
+        assert!(ret.is_ok(), "Expecting Ok, Got {:?}", ret);
+    }
+
+    #[test]
+    fn test_linuxcontainer_state() {
+        let ret = new_linux_container_and_then(|c: LinuxContainer| c.state());
+        assert!(ret.is_err(), "Expecting Err, Got {:?}", ret);
+        assert!(
+            format!("{:?}", ret).contains("not supported"),
+            "Got: {:?}",
+            ret
+        )
+    }
+
+    #[test]
+    fn test_linuxcontainer_oci_state_no_root_parent() {
+        let ret = new_linux_container_and_then(|mut c: LinuxContainer| {
+            c.config
+                .spec
+                .as_mut()
+                .unwrap()
+                .root_mut()
+                .as_mut()
+                .unwrap()
+                .set_path("/".to_string().into());
+            c.oci_state()
+        });
+        assert!(ret.is_err(), "Expecting Err, Got {:?}", ret);
+        assert!(
+            format!("{:?}", ret).contains("could not get root parent"),
+            "Got: {:?}",
+            ret
+        )
+    }
+
+    #[test]
+    fn test_linuxcontainer_oci_state() {
+        let ret = new_linux_container_and_then(|c: LinuxContainer| c.oci_state());
+        assert!(ret.is_ok(), "Expecting Ok, Got {:?}", ret);
+    }
+
+    #[test]
+    fn test_linuxcontainer_config() {
+        let ret = new_linux_container_and_then(|c: LinuxContainer| Ok(c));
+        assert!(ret.is_ok(), "Expecting ok, Got {:?}", ret);
+        assert!(
+            ret.as_ref().unwrap().config().is_ok(),
+            "Expecting ok, Got {:?}",
+            ret
+        );
+    }
+
+    #[test]
+    fn test_linuxcontainer_processes() {
+        let ret = new_linux_container_and_then(|c: LinuxContainer| c.processes());
+        assert!(ret.is_ok(), "Expecting Ok, Got {:?}", ret);
+    }
+
+    #[test]
+    fn test_linuxcontainer_get_process_not_found() {
+        let _ = new_linux_container_and_then(|mut c: LinuxContainer| {
+            let p = c.get_process_mut("123");
+            assert!(p.is_err(), "Expecting Err, Got {:?}", p);
+            Ok(())
+        });
+    }
+
+    #[tokio::test]
+    async fn test_linuxcontainer_get_process() {
+        let _ = new_linux_container_and_then(|mut c: LinuxContainer| {
+            let process =
+                Process::new(&sl(), &oci::Process::default(), "123", true, 1, None).unwrap();
+            let exec_id = process.exec_id.clone();
+            c.processes.insert(exec_id, process);
+
+            let p = c.get_process_mut("123");
+            assert!(p.is_ok(), "Expecting Ok, Got {:?}", p);
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn test_linuxcontainer_stats() {
+        let ret = new_linux_container_and_then(|c: LinuxContainer| c.stats());
+        assert!(ret.is_ok(), "Expecting Ok, Got {:?}", ret);
+    }
+
+    #[test]
+    fn test_linuxcontainer_set() {
+        let ret = new_linux_container_and_then(|mut c: LinuxContainer| {
+            c.set_resources(oci::LinuxResources::default())
+        });
+        assert!(ret.is_ok(), "Expecting Ok, Got {:?}", ret);
+    }
+
+    #[tokio::test]
+    async fn test_linuxcontainer_start() {
+        let (c, _dir) = new_linux_container();
+        let mut oci_process = oci::Process::default();
+        oci_process.set_capabilities(None);
+        let ret = c
+            .unwrap()
+            .start(Process::new(&sl(), &oci_process, "123", true, 1, None).unwrap())
+            .await;
+        assert!(format!("{:?}", ret).contains("no process config"));
+    }
+
+    #[tokio::test]
+    async fn test_linuxcontainer_run() {
+        let (c, _dir) = new_linux_container();
+        let mut oci_process = oci::Process::default();
+        oci_process.set_capabilities(None);
+        let ret = c
+            .unwrap()
+            .run(Process::new(&sl(), &oci_process, "123", true, 1, None).unwrap())
+            .await;
+        assert!(format!("{:?}", ret).contains("no process config"));
+    }
+
+    #[tokio::test]
+    async fn test_linuxcontainer_destroy() {
+        let (c, _dir) = new_linux_container();
+
+        let ret = c.unwrap().destroy().await;
+        assert!(ret.is_ok(), "Expecting Ok, Got {:?}", ret);
+    }
+
+    #[tokio::test]
+    async fn test_linuxcontainer_exec() {
+        let (c, _dir) = new_linux_container();
+        let ret = c.unwrap().exec().await;
+        assert!(ret.is_err(), "Expecting Err, Got {:?}", ret);
+    }
+
+    #[test]
+    fn test_linuxcontainer_do_init_child() {
+        let ret = do_init_child(std::io::stdin().as_raw_fd());
+        assert!(ret.is_err(), "Expecting Err, Got {:?}", ret);
+    }
 }

@@ -24,6 +24,7 @@ pub mod capabilities;
 pub mod cgroups;
 pub mod console;
 pub mod container;
+pub mod mount;
 pub mod pipe;
 pub mod process;
 #[cfg(feature = "seccomp")]
@@ -31,4 +32,3 @@ pub mod seccomp;
 pub mod selinux;
 pub mod specconf;
 pub mod validator;
-pub mod mount;
