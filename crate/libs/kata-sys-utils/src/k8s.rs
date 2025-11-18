@@ -43,12 +43,11 @@ pub fn is_ephemeral_volume(mount: &Mount) -> bool {
 /// K8s `EmptyDir` volumes are directories on the host. If the fs type is tmpfs,
 /// it's a ephemeral volume instead of a `EmptyDir` volume.
 pub fn is_host_empty_dir(path: &str) -> bool {
-    if is_empty_dir(path) {
-        if let Ok(info) = get_linux_mount_info(path) {
-            if info.fs_type != "tmpfs" {
-                return true;
-            }
-        }
+    if is_empty_dir(path)
+        && let Ok(info) = get_linux_mount_info(path)
+        && info.fs_type != "tmpfs"
+    {
+        return true;
     }
 
     false
@@ -62,10 +61,10 @@ pub fn is_host_empty_dir(path: &str) -> bool {
 pub fn update_ephemeral_storage_type(oci_spec: &mut Spec) {
     if let Some(mounts) = oci_spec.mounts_mut() {
         for m in mounts.iter_mut() {
-            if let Some(typ) = &m.typ() {
-                if mount::is_kata_guest_mount_volume(typ) {
-                    continue;
-                }
+            if let Some(typ) = &m.typ()
+                && mount::is_kata_guest_mount_volume(typ)
+            {
+                continue;
             }
 
             if let Some(source) = &m.source() {

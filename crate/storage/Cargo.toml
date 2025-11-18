@@ -32,9 +32,12 @@ oci-spec.workspace = true
 # Path utilities
 safe-path = "0.1"
 
+# TTRPC client
+ttrpc = { version = "0.8.4", features = ["async"] }
+
 # Internal dependencies
 celler = { path = "../celler" }
-protocols = { path = "../libs/protocols" }
+protocols = { path = "../libs/protocols", features = ["async"] }
 
 [dev-dependencies]
 tempfile = "3"

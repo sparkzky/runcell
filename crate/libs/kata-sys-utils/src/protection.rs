@@ -91,12 +91,12 @@ pub fn arch_guest_protection(
     snp_path: &str,
 ) -> Result<GuestProtection, ProtectionError> {
     // Check if /sys/module/kvm_intel/parameters/tdx is set to 'Y'
-    if Path::new(TDX_KVM_PARAMETER_PATH).exists() {
-        if let Ok(content) = fs::read(TDX_KVM_PARAMETER_PATH) {
-            if !content.is_empty() && content[0] == b'Y' {
-                return Ok(GuestProtection::Tdx);
-            }
-        }
+    if Path::new(TDX_KVM_PARAMETER_PATH).exists()
+        && let Ok(content) = fs::read(TDX_KVM_PARAMETER_PATH)
+        && !content.is_empty()
+        && content[0] == b'Y'
+    {
+        return Ok(GuestProtection::Tdx);
     }
 
     let check_contents = |file_name: &str| -> Result<bool, ProtectionError> {

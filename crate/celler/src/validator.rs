@@ -254,16 +254,16 @@ fn security(oci: &Spec) -> Result<()> {
 
     let default_vec = vec![];
     // 验证进程的 SELinux 标签
-    if let Some(process) = oci.process().as_ref() {
-        if process.selinux_label().is_some()
-            && !label_regex.is_match(process.selinux_label().as_ref().unwrap())
-        {
-            return Err(anyhow!(
-                "SELinux label for the process is invalid format: {:?}",
-                &process.selinux_label()
-            ));
-        }
+    if let Some(process) = oci.process().as_ref()
+        && process.selinux_label().is_some()
+        && !label_regex.is_match(process.selinux_label().as_ref().unwrap())
+    {
+        return Err(anyhow!(
+            "SELinux label for the process is invalid format: {:?}",
+            &process.selinux_label()
+        ));
     }
+
     // 验证挂载的 SELinux 标签
     if linux.mount_label().is_some() && !label_regex.is_match(linux.mount_label().as_ref().unwrap())
     {

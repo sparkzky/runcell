@@ -174,10 +174,11 @@ impl ConfigPlugin for DragonballConfig {
                 ));
             }
 
-            if let Some(v) = db.shared_fs.shared_fs.as_ref() {
-                if v != VIRTIO_FS && v != VIRTIO_FS_INLINE {
-                    return Err(eother!("dragonball hypervisor doesn't support {}", v));
-                }
+            if let Some(v) = db.shared_fs.shared_fs.as_ref()
+                && v != VIRTIO_FS
+                && v != VIRTIO_FS_INLINE
+            {
+                return Err(eother!("dragonball hypervisor doesn't support {}", v));
             }
 
             if db.memory_info.default_memory < MIN_DRAGONBALL_MEMORY_SIZE_MB {

@@ -492,15 +492,16 @@ impl Annotation {
 impl Annotation {
     /// update config info by annotation
     pub fn update_config_by_annotation(&self, config: &mut TomlConfig) -> Result<()> {
-        if let Some(hv) = self.annotations.get(KATA_ANNO_CFG_RUNTIME_HYPERVISOR) {
-            if config.hypervisor.contains_key(hv) {
-                config.runtime.hypervisor_name = hv.to_string();
-            }
+        if let Some(hv) = self.annotations.get(KATA_ANNO_CFG_RUNTIME_HYPERVISOR)
+            && config.hypervisor.contains_key(hv)
+        {
+            config.runtime.hypervisor_name = hv.to_string();
         }
-        if let Some(ag) = self.annotations.get(KATA_ANNO_CFG_RUNTIME_AGENT) {
-            if config.agent.contains_key(ag) {
-                config.runtime.agent_name = ag.to_string();
-            }
+
+        if let Some(ag) = self.annotations.get(KATA_ANNO_CFG_RUNTIME_AGENT)
+            && config.agent.contains_key(ag)
+        {
+            config.runtime.agent_name = ag.to_string();
         }
 
         // set default values for runtime.name, runtime.hypervisor_name and

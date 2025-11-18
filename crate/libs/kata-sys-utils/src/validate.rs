@@ -38,11 +38,12 @@ pub fn verify_id(id: &str) -> Result<(), Error> {
 pub fn valid_env(e: &str) -> Option<(&str, &str)> {
     // split the env str by '=' at the first time to ensure there is no '=' in key,
     // and also to ensure there is at least '=' in env str
-    if let Some((key, value)) = e.split_once('=') {
-        if !key.is_empty() && !key.as_bytes().contains(&b'\0') && !value.as_bytes().contains(&b'\0')
-        {
-            return Some((key.trim(), value.trim()));
-        }
+    if let Some((key, value)) = e.split_once('=')
+        && !key.is_empty()
+        && !key.as_bytes().contains(&b'\0')
+        && !value.as_bytes().contains(&b'\0')
+    {
+        return Some((key.trim(), value.trim()));
     }
 
     None

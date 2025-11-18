@@ -4,7 +4,7 @@
 //
 
 use std::{
-    io::{Error, ErrorKind, Result},
+    io::{Error, Result},
     path::{Component, Path, PathBuf},
 };
 
@@ -28,10 +28,10 @@ fn do_scoped_resolve<R: AsRef<Path>, U: AsRef<Path>>(
             match comp {
                 // Linux paths don't have prefixes.
                 Component::Prefix(_) => {
-                    return Err(Error::new(
-                        ErrorKind::Other,
-                        format!("Invalid path prefix in: {}", unsafe_path.as_ref().display()),
-                    ));
+                    return Err(Error::other(format!(
+                        "Invalid path prefix in: {}",
+                        unsafe_path.as_ref().display()
+                    )));
                 }
                 // `RootDir` should always be the first component, and Path::components() ensures
                 // that.
@@ -46,13 +46,10 @@ fn do_scoped_resolve<R: AsRef<Path>, U: AsRef<Path>>(
                     if let Ok(v) = path.read_link() {
                         nlinks += 1;
                         if nlinks > MAX_SYMLINK_DEPTH {
-                            return Err(Error::new(
-                                ErrorKind::Other,
-                                format!(
-                                    "Too many levels of symlinks: {}",
-                                    unsafe_path.as_ref().display()
-                                ),
-                            ));
+                            return Err(Error::other(format!(
+                                "Too many levels of symlinks: {}",
+                                unsafe_path.as_ref().display()
+                            )));
                         }
                         curr_path = if v.is_absolute() {
                             v.join(iter.as_path())

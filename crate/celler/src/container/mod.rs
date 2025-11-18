@@ -23,8 +23,8 @@
 //! - **进程管理**: fork、exec、信号处理
 //! - **TTY 支持**: 交互式终端
 
-pub(self) mod namespace;
-pub(self) mod types;
+mod namespace;
+mod types;
 
 use std::{
     collections::HashMap,
@@ -1497,11 +1497,12 @@ fn do_init_child(cwfd: RawFd) -> Result<()> {
 
     if env::var_os(HOME_ENV_KEY).is_none() {
         // try to set "HOME" env by uid
-        if let Ok(Some(user)) = User::from_uid(Uid::from_raw(guser.uid())) {
-            if let Ok(user_home_dir) = user.dir.into_os_string().into_string() {
-                unsafe { env::set_var(HOME_ENV_KEY, user_home_dir) };
-            }
+        if let Ok(Some(user)) = User::from_uid(Uid::from_raw(guser.uid()))
+            && let Ok(user_home_dir) = user.dir.into_os_string().into_string()
+        {
+            unsafe { env::set_var(HOME_ENV_KEY, user_home_dir) };
         }
+
         // set default home dir as "/" if "HOME" env is still empty
         if env::var_os(HOME_ENV_KEY).is_none() {
             unsafe { env::set_var(HOME_ENV_KEY, String::from("/")) };

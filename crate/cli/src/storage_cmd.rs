@@ -1,9 +1,9 @@
 //! 存储和镜像命令实现
 
+use std::{fs, path::Path};
+
 use anyhow::{Context, Result};
 use slog::Logger;
-use std::fs;
-use std::path::Path;
 
 use crate::StorageCommands;
 
@@ -23,8 +23,7 @@ pub async fn handle_storage_command(cmd: StorageCommands, logger: &Logger) -> Re
             }
 
             // 创建目录
-            fs::create_dir_all(&target)
-                .with_context(|| format!("无法创建目标目录: {}", target))?;
+            fs::create_dir_all(&target).with_context(|| format!("无法创建目标目录: {}", target))?;
 
             // 执行挂载
             storage::mount::bind_mount(&source, &target, &options)
@@ -50,15 +49,17 @@ pub async fn handle_storage_command(cmd: StorageCommands, logger: &Logger) -> Re
             }
 
             // 执行卸载
-            storage::mount::unmount(&target)
-                .with_context(|| format!("卸载失败: {}", target))?;
+            storage::mount::unmount(&target).with_context(|| format!("卸载失败: {}", target))?;
 
             slog::info!(logger, "卸载成功"; "target" => &target);
 
             Ok(())
         }
 
-        StorageCommands::Pull { image, container_id } => {
+        StorageCommands::Pull {
+            image,
+            container_id,
+        } => {
             slog::info!(logger, "拉取镜像"; "image" => &image, "container_id" => &container_id);
 
             // 调用镜像拉取功能

@@ -262,16 +262,15 @@ pub fn init_rootfs(
             // If the destination already exists and is not a directory, we bail
             // out This is to avoid mounting through a symlink or similar -- which
             // has been a "fun" attack scenario in the past.
-            if mount_typ == "proc" || mount_typ == "sysfs" {
-                if let Ok(meta) = fs::symlink_metadata(mount_dest) {
-                    if !meta.is_dir() {
-                        return Err(anyhow!(
-                            "Mount point {} must be ordinary directory: got {:?}",
-                            &mount_dest,
-                            meta.file_type()
-                        ));
-                    }
-                }
+            if (mount_typ == "proc" || mount_typ == "sysfs")
+                && let Ok(meta) = fs::symlink_metadata(mount_dest)
+                && !meta.is_dir()
+            {
+                return Err(anyhow!(
+                    "Mount point {} must be ordinary directory: got {:?}",
+                    &mount_dest,
+                    meta.file_type()
+                ));
             }
 
             mount_from(cfd_log, m, rootfs, flags, &data, label)?;

@@ -53,12 +53,12 @@ pub fn is_downward_api<P: AsRef<Path>>(path: P) -> bool {
 pub fn is_special_dir<P: AsRef<Path>>(path: P, dir_type: &str) -> bool {
     let path = path.as_ref();
 
-    if let Some(parent) = path.parent() {
-        if let Some(pname) = parent.file_name() {
-            if pname == dir_type && parent.parent().is_some() {
-                return true;
-            }
-        }
+    if let Some(parent) = path.parent()
+        && let Some(pname) = parent.file_name()
+        && pname == dir_type
+        && parent.parent().is_some()
+    {
+        return true;
     }
 
     false
@@ -75,12 +75,11 @@ pub fn container_type(spec: &oci::Spec) -> ContainerType {
     ]
     .iter()
     {
-        if let Some(annotations) = spec.annotations() {
-            if let Some(v) = annotations.get(k.to_owned()) {
-                if let Ok(t) = ContainerType::from_str(v) {
-                    return t;
-                }
-            }
+        if let Some(annotations) = spec.annotations()
+            && let Some(v) = annotations.get(k.to_owned())
+            && let Ok(t) = ContainerType::from_str(v)
+        {
+            return t;
         }
     }
 
@@ -95,10 +94,10 @@ pub fn container_name(spec: &oci::Spec) -> String {
     ]
     .iter()
     {
-        if let Some(annotations) = spec.annotations() {
-            if let Some(v) = annotations.get(k.to_owned()) {
-                return v.clone();
-            }
+        if let Some(annotations) = spec.annotations()
+            && let Some(v) = annotations.get(k.to_owned())
+        {
+            return v.clone();
         }
     }
 
@@ -120,11 +119,11 @@ pub fn container_type_with_id(spec: &oci::Spec) -> (ContainerType, Option<String
         ]
         .iter()
         {
-            if let Some(annotations) = spec.annotations() {
-                if let Some(id) = annotations.get(k.to_owned()) {
-                    sid = Some(id.to_string());
-                    break;
-                }
+            if let Some(annotations) = spec.annotations()
+                && let Some(id) = annotations.get(k.to_owned())
+            {
+                sid = Some(id.to_string());
+                break;
             }
         }
     }

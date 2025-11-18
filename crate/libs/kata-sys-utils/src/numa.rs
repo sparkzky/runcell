@@ -111,18 +111,18 @@ pub fn get_numa_nodes() -> Result<HashMap<u32, u32>> {
                 ));
             }
             Ok(d) => {
-                if let Ok(file_name) = d.file_name().into_string() {
-                    if file_name.starts_with(NUMA_NODE_PREFIX) {
-                        let index_string = file_name.trim_start_matches(NUMA_NODE_PREFIX);
-                        info!(
-                            sl!(),
-                            "get node dir {} node index {}", &file_name, index_string
-                        );
-                        match index_string.parse::<u32>() {
-                            Ok(nid) => read_cpu_info_from_node(&d, nid, &mut numa_nodes)?,
-                            Err(_e) => {
-                                return Err(Error::InvalidNodeFileName(file_name.to_string()));
-                            }
+                if let Ok(file_name) = d.file_name().into_string()
+                    && file_name.starts_with(NUMA_NODE_PREFIX)
+                {
+                    let index_string = file_name.trim_start_matches(NUMA_NODE_PREFIX);
+                    info!(
+                        sl!(),
+                        "get node dir {} node index {}", &file_name, index_string
+                    );
+                    match index_string.parse::<u32>() {
+                        Ok(nid) => read_cpu_info_from_node(&d, nid, &mut numa_nodes)?,
+                        Err(_e) => {
+                            return Err(Error::InvalidNodeFileName(file_name.to_string()));
                         }
                     }
                 }

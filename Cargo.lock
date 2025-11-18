@@ -2320,6 +2320,7 @@ dependencies = [
  "slog-term",
  "tempfile",
  "tokio",
+ "ttrpc",
 ]
 
 [[package]]

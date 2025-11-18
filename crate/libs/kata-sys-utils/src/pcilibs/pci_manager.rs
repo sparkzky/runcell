@@ -165,10 +165,10 @@ impl PCIDeviceManager {
         let vendor_str = fs::read_to_string(device_path.join("vendor"))?;
         let vendor_id = u16::from_str_radix(vendor_str.trim().trim_start_matches("0x"), 16)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        if let Some(vend_id) = vendor {
-            if vendor_id != vend_id {
-                return Ok(None);
-            }
+        if let Some(vend_id) = vendor
+            && vendor_id != vend_id
+        {
+            return Ok(None);
         }
 
         let class_str = fs::read_to_string(device_path.join("class"))?;

@@ -182,10 +182,10 @@ pub fn set_cpu_resources(cg: &cgroups::Cgroup, cpu: &LinuxCpu) -> Result<()> {
 
     let cpuset_controller: &CpuSetController = cg.controller_of().unwrap();
 
-    if let Some(cpus) = cpu.cpus() {
-        if let Err(e) = cpuset_controller.set_cpus(cpus) {
-            warn!(sl(), "write cpuset failed: {:?}", e);
-        }
+    if let Some(cpus) = cpu.cpus()
+        && let Err(e) = cpuset_controller.set_cpus(cpus)
+    {
+        warn!(sl(), "write cpuset failed: {:?}", e);
     }
 
     if let Some(mems) = cpu.mems() {

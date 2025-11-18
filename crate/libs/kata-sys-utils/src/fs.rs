@@ -44,21 +44,23 @@ pub fn get_base_name<P: AsRef<Path>>(src: P) -> Result<OsString> {
 
 /// Check whether `path` is on a fuse filesystem.
 pub fn is_fuse_fs<P: AsRef<Path>>(path: P) -> bool {
-    if let Ok(st) = nix::sys::statfs::statfs(path.as_ref()) {
-        if st.filesystem_type().0 == FUSE_SUPER_MAGIC {
-            return true;
-        }
+    if let Ok(st) = nix::sys::statfs::statfs(path.as_ref())
+        && st.filesystem_type().0 == FUSE_SUPER_MAGIC
+    {
+        return true;
     }
+
     false
 }
 
 /// Check whether `path` is on a overlay filesystem.
 pub fn is_overlay_fs<P: AsRef<Path>>(path: P) -> bool {
-    if let Ok(st) = nix::sys::statfs::statfs(path.as_ref()) {
-        if st.filesystem_type().0 == OVERLAYFS_SUPER_MAGIC {
-            return true;
-        }
+    if let Ok(st) = nix::sys::statfs::statfs(path.as_ref())
+        && st.filesystem_type().0 == OVERLAYFS_SUPER_MAGIC
+    {
+        return true;
     }
+
     false
 }
 

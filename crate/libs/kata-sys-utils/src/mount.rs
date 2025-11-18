@@ -226,11 +226,12 @@ pub fn create_mount_destination<S: AsRef<Path>, D: AsRef<Path>, R: AsRef<Path>>(
         }
     }
 
-    if let Err(e) = builder.create(dst) {
-        if e.kind() != std::io::ErrorKind::AlreadyExists {
-            return Err(e.into());
-        }
+    if let Err(e) = builder.create(dst)
+        && e.kind() != std::io::ErrorKind::AlreadyExists
+    {
+        return Err(e.into());
     }
+
     if !dst.is_dir() {
         Err(Error::InvalidPath(dst.to_path_buf()))
     } else {
@@ -678,11 +679,11 @@ fn compact_lowerdir_option(opts: &[String]) -> (Option<PathBuf>, Vec<String>) {
 
 fn find_overlay_lowerdirs(opts: &[String]) -> Option<(usize, Vec<String>)> {
     for (idx, o) in opts.iter().enumerate() {
-        if let Some(lower) = o.strip_prefix("lowerdir=") {
-            if !lower.is_empty() {
-                let c_opts: Vec<String> = lower.split(':').map(|c| c.to_string()).collect();
-                return Some((idx, c_opts));
-            }
+        if let Some(lower) = o.strip_prefix("lowerdir=")
+            && !lower.is_empty()
+        {
+            let c_opts: Vec<String> = lower.split(':').map(|c| c.to_string()).collect();
+            return Some((idx, c_opts));
         }
     }
 
@@ -837,13 +838,13 @@ pub fn get_mount_type(m: &oci::Mount) -> String {
     m.typ()
         .clone()
         .map(|typ| {
-            if typ.as_str() == "none" {
-                if let Some(opts) = m.options() {
-                    if opts.iter().any(|opt| opt == "bind" || opt == "rbind") {
-                        return "bind".to_string();
-                    }
-                }
+            if typ.as_str() == "none"
+                && let Some(opts) = m.options()
+                && opts.iter().any(|opt| opt == "bind" || opt == "rbind")
+            {
+                return "bind".to_string();
             }
+
             typ
         })
         .unwrap_or("bind".to_string())

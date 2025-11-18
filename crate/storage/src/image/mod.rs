@@ -61,8 +61,12 @@ pub async fn pull_and_extract(image: &str, container_id: &str, logger: &Logger) 
     // 确保容器基础目录存在
     let container_base = Path::new(CONTAINER_BASE);
     if !container_base.exists() {
-        fs::create_dir_all(container_base)
-            .with_context(|| format!("Failed to create container base directory: {}", CONTAINER_BASE))?;
+        fs::create_dir_all(container_base).with_context(|| {
+            format!(
+                "Failed to create container base directory: {}",
+                CONTAINER_BASE
+            )
+        })?;
     }
 
     let bundle_path = scoped_join(CONTAINER_BASE, container_id).with_context(|| {
@@ -111,7 +115,7 @@ pub async fn pull_and_extract(image: &str, container_id: &str, logger: &Logger) 
 
     // 返回 rootfs 路径
     let rootfs_path = scoped_join(&bundle_path, "rootfs")
-        .with_context(|| format!("Failed to create rootfs path"))?;
+        .with_context(|| "Failed to create rootfs path".to_string())?;
 
     info!(logger, "Image extracted successfully"; "rootfs" => rootfs_path.display().to_string());
 
@@ -183,7 +187,7 @@ async fn copy_local_bundle(src_path: &str, dest_path: &Path, logger: &Logger) ->
         if src_config.exists() {
             let dest_config = dest_path.join("config.json");
             fs::copy(&src_config, &dest_config)
-                .with_context(|| format!("Failed to copy config.json"))?;
+                .with_context(|| "Failed to copy config.json".to_string())?;
         }
     } else {
         // 源路径本身就是 rootfs,直接复制到 dest_path/rootfs

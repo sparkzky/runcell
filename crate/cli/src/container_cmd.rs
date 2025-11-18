@@ -1,18 +1,17 @@
 //! 容器管理命令实现
 
-use anyhow::{Context, Result};
-use slog::Logger;
-use std::fs;
-use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::{
+    fs,
+    path::Path,
+    sync::{Arc, RwLock},
+};
 
+use anyhow::{Context, Result};
 use celler::{
-    cgroups::DevicesCgroupInfo,
-    container::LinuxContainer,
-    process::Process,
-    specconf::CreateOpts,
+    cgroups::DevicesCgroupInfo, container::LinuxContainer, process::Process, specconf::CreateOpts,
 };
 use oci_spec::runtime::Spec;
+use slog::Logger;
 
 use crate::ContainerCommands;
 
@@ -28,7 +27,12 @@ pub async fn handle_container_command(cmd: ContainerCommands, logger: &Logger) -
         ContainerCommands::Create { id, rootfs, bundle } => {
             create_container(&id, &rootfs, bundle.as_deref(), logger).await?;
         }
-        ContainerCommands::Run { id, image, command, args } => {
+        ContainerCommands::Run {
+            id,
+            image,
+            command,
+            args,
+        } => {
             run_container(&id, &image, &command, &args, logger).await?;
         }
         ContainerCommands::Start { id } => {
@@ -120,13 +124,8 @@ async fn run_container(
 
     slog::info!(logger, "正在创建容器实例...");
 
-    let mut container = LinuxContainer::new(
-        id,
-        CONTAINER_STATE_BASE,
-        devcg_info,
-        create_opts,
-        logger,
-    )?;
+    let mut container =
+        LinuxContainer::new(id, CONTAINER_STATE_BASE, devcg_info, create_opts, logger)?;
 
     slog::info!(logger, "容器创建成功！"; "id" => id);
 
@@ -144,17 +143,19 @@ async fn run_container(
     let process = Process::new(
         logger,
         &oci_process,
-        id,          // exec_id
-        true,        // init process
-        0,           // pipe_size (0 = default)
-        None,        // proc_io (None for simple case)
+        id,   // exec_id
+        true, // init process
+        0,    // pipe_size (0 = default)
+        None, // proc_io (None for simple case)
     )
     .context("创建 Process 失败")?;
 
     slog::info!(logger, "正在启动容器...");
 
     // 启动容器（包括 start + exec）
-    container.run_container(process).await
+    container
+        .run_container(process)
+        .await
         .context("启动容器失败")?;
 
     slog::info!(logger, "容器启动成功！"; "id" => id);
@@ -206,19 +207,15 @@ fn create_minimal_spec(rootfs: &str, args: &[String]) -> Result<Spec> {
 
     use oci_spec::runtime::{ProcessBuilder, RootBuilder, SpecBuilder};
 
-    let process = ProcessBuilder::default()
-        .args(args.to_vec())
-        .build()?;
-    
-    let root = RootBuilder::default()
-        .path(rootfs)
-        .build()?;
-    
+    let process = ProcessBuilder::default().args(args.to_vec()).build()?;
+
+    let root = RootBuilder::default().path(rootfs).build()?;
+
     let spec = SpecBuilder::default()
         .version("1.0.0")
         .process(process)
         .root(root)
         .build()?;
-    
+
     Ok(spec)
 }

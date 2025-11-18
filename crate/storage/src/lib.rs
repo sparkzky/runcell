@@ -88,11 +88,11 @@ pub async fn add_storages(
 
         match handler.create_device(storage.clone(), &mut ctx).await {
             Ok(device) => {
-                if let Some(path) = device.path() {
-                    if !path.is_empty() {
-                        mount_list.push(path.to_string());
-                        info!(logger, "Storage device created successfully"; "path" => path);
-                    }
+                if let Some(path) = device.path()
+                    && !path.is_empty()
+                {
+                    mount_list.push(path.to_string());
+                    info!(logger, "Storage device created successfully"; "path" => path);
                 }
             }
             Err(e) => {

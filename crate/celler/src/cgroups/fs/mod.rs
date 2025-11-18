@@ -23,7 +23,7 @@ use utils::*;
 
 use super::{CgroupManager, DevicesCgroupInfo};
 
-pub(self) mod utils;
+mod utils;
 
 fn sl() -> slog::Logger {
     slog_scope::logger().new(o!("subsystem" => "cgroups"))
@@ -120,11 +120,11 @@ impl Manager {
         // The rules of container cgroup are copied from its parent, which
         // contains some permissions that the container doesn't need.
         // Therefore, resetting the container's devices cgroup is required.
-        if let Some(devices_group_info) = devices_group_info.as_ref() {
-            if !devices_group_info.allowed_all {
-                Self::setup_devcg_whitelist(&cg)
-                    .with_context(|| format!("Setup device cgroup whitelist for {}", cpath))?;
-            }
+        if let Some(devices_group_info) = devices_group_info.as_ref()
+            && !devices_group_info.allowed_all
+        {
+            Self::setup_devcg_whitelist(&cg)
+                .with_context(|| format!("Setup device cgroup whitelist for {}", cpath))?;
         }
 
         Ok(Self {
@@ -334,11 +334,12 @@ impl CgroupManager for Manager {
         }
 
         // set devices resources
-        if !self.devcg_allowed_all {
-            if let Some(devices) = r.devices() {
-                set_devices_resources(&self.cgroup, devices, res, pod_res);
-            }
+        if !self.devcg_allowed_all
+            && let Some(devices) = r.devices()
+        {
+            set_devices_resources(&self.cgroup, devices, res, pod_res);
         }
+
         debug!(
             sl(),
             "Resources after processed, pod_res = {:?}, res = {:?}", pod_res, res

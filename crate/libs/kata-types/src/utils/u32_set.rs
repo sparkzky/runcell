@@ -68,26 +68,23 @@ impl FromStr for U32Set {
 
         let mut cpus = Vec::new();
         for split_cpu in cpus_str.split(',') {
-            if !split_cpu.contains('-') {
-                if !split_cpu.is_empty() {
-                    if let Ok(cpu_id) = split_cpu.parse::<u32>() {
-                        cpus.push(cpu_id);
-                        continue;
-                    }
-                }
+            if !split_cpu.contains('-')
+                && !split_cpu.is_empty()
+                && let Ok(cpu_id) = split_cpu.parse::<u32>()
+            {
+                cpus.push(cpu_id);
+                continue;
             } else {
                 let fields: Vec<&str> = split_cpu.split('-').collect();
-                if fields.len() == 2 {
-                    if let Ok(start) = fields[0].parse::<u32>() {
-                        if let Ok(end) = fields[1].parse::<u32>() {
-                            if start < end {
-                                for cpu in start..=end {
-                                    cpus.push(cpu);
-                                }
-                                continue;
-                            }
-                        }
+                if fields.len() == 2
+                    && let Ok(start) = fields[0].parse::<u32>()
+                    && let Ok(end) = fields[1].parse::<u32>()
+                    && start < end
+                {
+                    for cpu in start..=end {
+                        cpus.push(cpu);
                     }
+                    continue;
                 }
             }
 

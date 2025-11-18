@@ -346,10 +346,10 @@ pub fn validate_path_pattern<P: AsRef<Path>>(patterns: &[String], path: P) -> Re
         .to_str()
         .ok_or_else(|| eother!("Invalid path {}", path.as_ref().to_string_lossy()))?;
     for p in patterns.iter() {
-        if let Ok(glob) = glob::Pattern::new(p) {
-            if glob.matches(path) {
-                return Ok(());
-            }
+        if let Ok(glob) = glob::Pattern::new(p)
+            && glob.matches(path)
+        {
+            return Ok(());
         }
     }
 

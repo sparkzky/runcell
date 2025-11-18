@@ -229,10 +229,10 @@ impl<'a> HookExecutor<'a> {
 
         // Use Hook.timeout if it's valid, otherwise default to 10s.
         let mut timeout = DEFAULT_HOOK_TIMEOUT_SEC as u64;
-        if let Some(t) = hook.timeout() {
-            if t > 0 {
-                timeout = t as u64;
-            }
+        if let Some(t) = hook.timeout()
+            && t > 0
+        {
+            timeout = t as u64;
         }
 
         Ok(HookExecutor {
@@ -251,26 +251,28 @@ impl<'a> HookExecutor<'a> {
             .limit_time(Duration::from_secs(self.timeout))
             .read_string()
             .map_err(|e| e.error)?;
-        if let Some(err) = stderr {
-            if !err.is_empty() {
-                error!(
-                    sl!(),
-                    "hook {} exec failed: {}",
-                    self.hook.path().display(),
-                    err
-                );
-            }
+        if let Some(err) = stderr
+            && !err.is_empty()
+        {
+            error!(
+                sl!(),
+                "hook {} exec failed: {}",
+                self.hook.path().display(),
+                err
+            );
         }
-        if let Some(out) = stdout {
-            if !out.is_empty() {
-                info!(
-                    sl!(),
-                    "hook {} exec stdout: {}",
-                    self.hook.path().display(),
-                    out
-                );
-            }
+
+        if let Some(out) = stdout
+            && !out.is_empty()
+        {
+            info!(
+                sl!(),
+                "hook {} exec stdout: {}",
+                self.hook.path().display(),
+                out
+            );
         }
+
         // Give a grace period for `execute_and_wait()`.
         self.timeout = 1;
         Ok(())

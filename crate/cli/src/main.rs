@@ -4,10 +4,10 @@
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use slog::{o, Drain, Logger};
+use slog::{Drain, Logger, o};
 
-mod storage_cmd;
 mod container_cmd;
+mod storage_cmd;
 
 /// Runcell - 轻量级容器运行时
 #[derive(Parser)]
